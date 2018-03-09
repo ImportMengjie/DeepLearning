@@ -4,7 +4,7 @@ import csv
 
 
 def get_weight(shape):
-    return tf.Variable(tf.truncated_normal(shape))
+    return tf.Variable(tf.truncated_normal(shape, mean=1.0, stddev=0.5))
 
 
 def conv2d(input, filter):
@@ -17,21 +17,20 @@ y_data = tf.placeholder('int32', (None))
 x = tf.reshape(x_data/255., (-1, 48, 48, 1))
 y = tf.one_hot(y_data, 6)
 
-conv1_filter = get_weight((3, 3, 1, 64))
+conv1_filter = get_weight((5, 5, 1, 64))
 conv1_bias = get_weight((1, 64))
 conv1 = conv2d(x, conv1_filter)
 conv1_out = tf.nn.relu(conv1+conv1_bias)
 
-conv2_filter = get_weight((3, 3, 64, 32))
+conv2_filter = get_weight((5, 5, 64, 32))
 conv2_bias = get_weight((1, 32))
 conv2 = conv2d(conv1_out, conv2_filter)
 conv2_out = tf.nn.relu(conv2+conv2_bias)
 
-conv3_filter = get_weight((3, 3, 32, 16))
+conv3_filter = get_weight((5, 5, 32, 16))
 conv3_bias = get_weight((1, 16))
 conv3 = conv2d(conv2_out, conv3_filter)
 conv3_out = tf.nn.relu(conv3 + conv3_bias)
-
 flat_wide = int(conv3_out.shape[1]*conv3_out.shape[2]*conv3_out.shape[3])
 print(conv3_out.shape)
 flat = tf.reshape(conv3_out, (-1, flat_wide))
@@ -54,9 +53,9 @@ y_hat = tf.nn.softmax((tf.matmul(fc_out2, fc_w3)+fc_b3))
 cross_entropy = - \
     tf.reduce_mean(y*tf.log(tf.clip_by_value(y_hat, 1e-11, 1.0)))
 
-#train_step = tf.train.GradientDescentOptimizer(0.1).minimize(cross_entropy)
-train_step = tf.train.AdamOptimizer(0.01).minimize(cross_entropy)
-#train_step = tf.train.MomentumOptimizer(0.001).minimize(cross_entropy)
+train_step = tf.train.GradientDescentOptimizer(0.1).minimize(cross_entropy)
+#train_step = tf.train.AdamOptimizer(0.01).minimize(cross_entropy)
+# train_step = tf.train.MomentumOptimizer(0.001).minimize(cross_entropy)
 correct_prediction = tf.equal(tf.argmax(y, 1), tf.argmax(y_hat, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, "float32"))
 
@@ -81,7 +80,8 @@ with open('ml-2017fall-hw3/train.csv') as train, open('ml-2017fall-hw3/test.csv'
     train_y = np.array(train_y)
     test_y = np.array(test_y)
     test_x = np.array(test_x)
-    batch_size = 64
+    batch_size = 32
+    len_of_test = len(test_y)
 
     with tf.Session() as sess:
         # init = tf.initialize_all_variables()
@@ -94,5 +94,8 @@ with open('ml-2017fall-hw3/train.csv') as train, open('ml-2017fall-hw3/test.csv'
             sess.run(train_step, feed_dict={
                 x_data: train_x[s: l], y_data: train_y[s: l]})
             if _ % 5 == 0:
-                print(sess.run(accuracy, feed_dict={
-                    x_data: test_x[0:512], y_data: test_y[0:512]}))
+                total = 0.
+                for i in range(10):
+                    total += sess.run(accuracy, feed_dict={
+                        x_data: test_x[i*512:i*512+512], y_data: test_y[i*512:i*512+512]})
+                print(total/10)
